@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<style>
+    body {
+        background-color: rgb(193, 209, 181);
+        text-align: center;
+        color: rgb(0, 0, 0);
+    }
+
+    input {
+        width: 100%;
+        max-width: 400px;
+    }
+</style>
+
+<body>
+    <h2>Temperature Prob - Wifi</h2>
+    <p> This devices Mac address: </p>
+    <p id=macText></p>
+    <form action="/config/saveWifi" method="POST">
+        <h4>Wifi Configuration</h4>
+        <div>
+            <label for="ssid">Wifi Name(SSID):</label><br>
+            <input type="text" id="ssid" name="ssid"><br>
+            <label for="pw">Password:</label><br>
+            <input type="password" id="pw" name="pw"><br><br>
+        </div>
+        <input type="submit" value="Save">
+    </form>
+    <form action="/saveNTP" method="POST">
+        <h4>Time Server</h4>
+        <div>
+            <label for="NPT1">First time server:</label><br>
+            <input type="text" id="NTP1" name="NTP1"><br>
+            <label for="NTP2">Backup time server:</label><br>
+            <input type="text" id="NTP2" name="NTP2"><br><br>
+        </div>
+        <input type="submit" value="Save">
+    </form>
+    <form action="/saveCloud" method="POST">
+        <h4>Cloud Configuration</h4>
+        <div>
+            <label for="SCOPE_ID">SCOPE_ID:</label><br>
+            <input type="text" id="SCOPE_ID" name="SCOPE_ID"><br>
+            <label for="DEVICE_ID">DEVICE_ID:</label><br>
+            <input type="text" id="DEVICE_ID" name="DEVICE_ID"><br>
+            <label for="DEVICE_KEY">DEVICE_KEY:</label><br>
+            <input type="text" id="DEVICE_KEY" name="DEVICE_KEY"><br>
+        </div>
+        <br><br>
+        <input type="submit" value="Save">
+    </form>
+    <br><br>
+    <form action="/restart" method="POST">
+        <input type="submit" value="Restart">
+    </form>
+    <script>
+        let xhr = new XMLHttpRequest();
+        xhr.open('GET', "/deviceinfo", true);
+        xhr.send();
+        xhr.onreadystatechange = processRequest;
+
+        function processRequest(e) {
+                if (xhr.readyState == 4 && xhr.status == 200) {
+                    let response = JSON.parse(xhr.responseText);
+                    document.querySelector("#macText").innerHTML = response.mac;
+                }
+            }
+    </script>
+</body>
+
+</html>
