@@ -170,6 +170,26 @@ void wifiConfigServer::handlePostConfig(){
       {
         this->server->send(400, FPSTR(TEXT_PLAIN), "Required data not send");
       }
+  }
+  else if (strncmp("saveNTP",this->server->pathArg(0).c_str(),7 ) ==0)
+  {
+    
+      //Save the wifi config
+      if (this->server->hasArg("NTP1")&&this->server->hasArg("NTP2"))
+      {
+        Serial.println("save NPT");
+        configObjectStruct co;
+        getStoredConfig(&co );
+        strcpy((co.ntpserver1), this->server->arg("NTP1").c_str());
+        strcpy((co.ntpserver2), this->server->arg("NTP2").c_str());        
+        setStoredConfig(&co );
+        this->server->sendHeader("Location","/");
+        this->server->send(303, FPSTR(TEXT_PLAIN), "action:1");
+      }   
+      else
+      {
+        this->server->send(400, FPSTR(TEXT_PLAIN), "Required data not send");
+      }
 
   }
 
