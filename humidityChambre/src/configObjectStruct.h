@@ -19,6 +19,14 @@ struct configObjectStruct{
   char firmwareUpdateState[20];
   char ntpserver1[50];
   char ntpserver2[50];
+  int targetHumid;
+  int targetHumidTolerance=-1;
+  uint8_t pinDehumidity;
+  uint8_t pinVaporizer;
+  uint8_t typeSensor;
+  uint8_t pinSDA;
+  uint8_t pinSCL;
+
 };
 
 bool setStoredConfig(configObjectStruct* co );
