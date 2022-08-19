@@ -140,25 +140,52 @@ void displayRotation(char * text)
 
 
 int connect_wifi(const char* wifi_ssid, const char* wifi_password,int maxTry) {
+  byte numSsid = WiFi.scanNetworks();
+  if (numSsid == -1) {
+    LOG_VERBOSE("Couldn't find any WIFI");
+  }
+  // Serial.print("number of available networks:");
+  // Serial.println(numSsid);
+  bool foundMyNetwork =false;
+  for (int thisNet = 0; thisNet < numSsid; thisNet++) {
+    if (strcmp (WiFi.SSID(thisNet).c_str(),wifi_ssid)==0)
+    {
+      LOG_VERBOSE("Found Wifi %s",WiFi.SSID(thisNet));
+      foundMyNetwork=true;
+      break;
+    }    
+    // Serial.print(WiFi.RSSI(thisNet));
+    // Serial.println(" dBm");    // Serial.print("\tEncryption: ");
+    // printEncryptionType(WiFi.encryptionType(thisNet));
+  }
+  if (foundMyNetwork==false )
+    return false ;
+  if (WiFi.status() != WL_IDLE_STATUS)
+    WiFi.disconnect();
   WiFi.begin(wifi_ssid, wifi_password);
   reportOutput("Connecting to WiFi..");
-  Serial.print("|"); Serial.print(wifi_ssid); Serial.println("|");
-  Serial.print("|"); Serial.print(wifi_password); Serial.println("|");
+  // Serial.print("|"); Serial.print(wifi_ssid); Serial.println("|");
+  // Serial.print("|"); Serial.print(wifi_password); Serial.println("|");
   int countTry=0;
   while (WiFi.status() != WL_CONNECTED) {
     countTry ++;
     reportOutput("Failed try of wifi connection");
-    Serial.println(WiFi.status());
+    // Serial.println(WiFi.status());
     delay(800);
     if (maxTry< countTry)
       break;
+    if (WiFi.status()== WL_CONNECT_FAILED)
+    {
+      reportOutput("connect wifi Return Connect failed");
+    }
   }
   return countTry;
 }
 
 void setClock(int maxIterrations =2 ) {
   configObjectStruct co ;
-  bool configLoaded = getStoredConfig(&co );
+  bool configLoaded = getStoredConfig(&co );  
+  
   configTime(0, 0, co.ntpserver1, co.ntpserver2);  // UTC  
   time_t now = time(nullptr);
   int i =0;
@@ -183,18 +210,31 @@ void setClock(int maxIterrations =2 ) {
   // configTime(0, 0,co.ntpserver2, co.ntpserver1);
 }
 
-void   turnOffVaporizer()
+
+
+void turnOffVaporizer()
 {
   digitalWrite(g_configObject.pinVaporizer, LOW); 
-  Serial.println("Vaporizer off");
-  currentState.vaporizerOn =false;  
+  Serial.println("Vaporizer off");  
+  if (currentState.vaporizerOn ==true)
+  {
+    //only change if change is needed
+    currentState.vaporizerOn =false;  
+    currentState.stateNeedsReport=true;
+  }
 }
 
 void turnOnVaporizer()
 {
-  displayInformation("Vaporizer On")    ;
-  digitalWrite(g_configObject.pinVaporizer, HIGH); 
-  currentState.vaporizerOn =true;  
+  displayInformation("Vaporizer On");
+  digitalWrite(g_configObject.pinVaporizer, HIGH);   
+  if (currentState.vaporizerOn ==false)
+  {
+    LOG_VERBOSE("Vaporizer was off");
+    //only change if change is needed
+    currentState.vaporizerOn =true;  
+    currentState.stateNeedsReport=true;
+  }
   turnOffHumidifier();  
 }
 
@@ -202,15 +242,26 @@ void turnOffHumidifier()
 {
   digitalWrite(g_configObject.pinDehumidity, LOW); 
   Serial.println("Dehumidifier off");  
-  currentState.DehumidifyOn =false;  
+  if (currentState.DehumidifyOn ==true)
+  {
+    LOG_VERBOSE("Dehumidifier was on");
+    //only change if change is needed
+    currentState.DehumidifyOn =false;  
+    currentState.stateNeedsReport=true;
+  }
 }
 
 void turnOnDehumidify()
 {
-  displayInformation("Dehumidifier on") ;
+  displayInformation("Dehumidifier on") ;  
+  digitalWrite(g_configObject.pinDehumidity, HIGH);   
+  if (currentState.DehumidifyOn ==false)
+  {
+    //only change if change is needed
+    currentState.DehumidifyOn =true;  
+    currentState.stateNeedsReport=true;
+  }
   turnOffVaporizer();
-  digitalWrite(g_configObject.pinDehumidity, HIGH); 
-  currentState.DehumidifyOn = true;  
 }
 
 void TestEnviroment()
@@ -247,11 +298,16 @@ bool setupAzure()
   time_t now = time(nullptr);
   if (now < 8 * 3600 * 2)
     return false;
+  if (WiFi.status() != WL_CONNECTED)
+  {
+      if (!connect_wifi(g_configObject.ssid, g_configObject.PW, 2)==2);
+        return false;      
+  }
   currentState.needReconnectAzure= false;
   if ((strlen(g_configObject.SCOPE_ID)==0) ||
        (strlen(g_configObject.DEVICE_ID)==0) ||
        (strlen(g_configObject.DEVICE_KEY)==0))
-       return false;
+       return false;  
   if (!connect_client( g_configObject.SCOPE_ID, g_configObject.DEVICE_ID, g_configObject.DEVICE_KEY))
   {
     g_configServer =new wifiConfigServer();
@@ -271,6 +327,8 @@ void IRAM_ATTR doorOpenEventISR(int id) {
     {
       case INTERRUPBUTTONID_DOOR:
         Serial.println("Door open");
+        currentState.isDoorOpen =!currentState.isDoorOpen;  
+        reportNewState(&currentState);
         break;
       case INTERRUPBUTTONID_SW1:
         Serial.println("Button 1");
@@ -342,7 +400,7 @@ void setup() {
   printConfig(&g_configObject);
   if (WiFi.status() != WL_CONNECTED)
   {    
-    {
+    
       byte numSsid = WiFi.scanNetworks();
       if (numSsid == -1) {
         Serial.println("Couldn't get a wifi connection");
@@ -365,7 +423,7 @@ void setup() {
       WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD);   
       g_configServer =new wifiConfigServer();
       g_configServer->setupServer();     
-    }
+    
   }
   else 
   {
@@ -441,13 +499,23 @@ void loop() {
   
    // set the brightness on LEDC channel 0
   
-
+  if (WiFi.status()==WL_CONNECTION_LOST)
+  {
+    // We used to be connected but are no longer
+    LOG_VERBOSE("Lost Wifi connection");
+    connect_wifi(g_configObject.ssid, g_configObject.PW, MAXWIFICONNECTIONTRY);
+  }
 
   unsigned long ms = millis();
   if (ms - g_lastTick > 1000*20) 
   {  
       g_lastTick = ms;
       TestEnviroment();
+      if (currentState.stateNeedsReport==true)
+      {
+        reportNewState(&currentState);
+        counterTele=0;
+      }
       counterTele++;
       if (counterTele>=60)
       {
@@ -485,14 +553,13 @@ void loop() {
     displayTime(); // We can not show the time when in config mode.
   }
   if (currentState.isAzureConnected)
-  {
-    
+  {    
     iotc_loop();  // do background work for iotc
   }
   // else
   //   Serial.println("Not Connected");
   if (currentState.needReconnectAzure)
-  {
+  {    
     setupAzure();
   }
   delay(1000);

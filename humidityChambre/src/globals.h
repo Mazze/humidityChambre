@@ -6,6 +6,8 @@ typedef struct stateStruct_Tag{
 
   bool vaporizerOn = false;
   bool DehumidifyOn = false;
+  bool isDoorOpen =false;
+  bool stateNeedsReport =false;
   float temperature = -100;
   float humidity =-1;
   bool isAzureConnected =false;

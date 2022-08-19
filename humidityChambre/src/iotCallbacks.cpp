@@ -4,6 +4,7 @@
 #include "azure/common/iotc_json.h"
 #include"logging.h"
 
+#define MAXPAYLOADSIZE 1800
 
 static IOTContext g_iotContex ;
 
@@ -26,7 +27,49 @@ void sendNewTelemetry(stateStruct* state)
     LOG_ERROR("Sending message has failed with error code %d", errorCode);
  }
 }
+void reportNewState(stateStruct* state)
+{   
+   char msg [256];
+   uint pos; 
+   pos = snprintf(msg, sizeof(msg) - 1, 
+                    "{\"%s\":%d,\"%s\":%d,\"%s\":%d}",
+                                pDoorOpenState,state->isDoorOpen,
+                                pVaporiserOnState,state->vaporizerOn,
+                                pDeHumidifierOnState, state->DehumidifyOn);
+   LOG_VERBOSE("PropertySend: %s",msg);
+   state->stateNeedsReport=false;
+   auto errorCode = iotc_send_property(g_iotContex, msg, pos); 
+   sendNewTelemetry( state);
+}
 
+void reportNewProperties()
+{   
+    LOG_VERBOSE("reportNewProperties:");
+    char msg [MAXPAYLOADSIZE];   
+    char buffer [300] = {0};
+    uint pos; 
+    pos = snprintf(msg, sizeof(msg), "{");
+    for (int i =0;i<numberOfTag;i++)
+    {
+        // LOG_VERBOSE("Setting : %s",settingTags[i]);
+        if (!getConfigFromSettingAsString(settingTags[i], buffer, sizeof(buffer)))
+            continue;
+        if (buffer[0]==0)
+            continue;
+        // LOG_VERBOSE("value : %s",buffer);
+        pos += snprintf(msg+pos, sizeof(msg)-pos , 
+                "\"%s\":%s,",settingTags[i],buffer );                
+        // LOG_VERBOSE("Pos : %d; Msg: %s",pos,msg);
+    }
+    if (pos >2)
+    {
+        msg[pos-1]='}';
+        LOG_VERBOSE("PropertySend: %s",msg);
+        auto errorCode = iotc_send_property(g_iotContex, msg, pos);         
+    }
+    else
+        LOG_VERBOSE("Didn't find settings to report");
+}
 void on_IOTCMessage(IOTContext ctx, IOTCallbackInfo* callbackInfo) 
 {
     // AzureIOT::StringBuffer buffer;
@@ -36,6 +79,8 @@ void on_IOTCMessage(IOTContext ctx, IOTCallbackInfo* callbackInfo)
     // LOG_VERBOSE("- [%s] Message was received. Payload => %s\n",
     //          callbackInfo->eventName, buffer.getLength() ? *buffer : "EMPTY");
 }
+
+
 
 void on_IOTCSettings(IOTContext ctx, IOTCallbackInfo* callbackInfo) 
 {
@@ -79,12 +124,7 @@ void on_IOTCSettings(IOTContext ctx, IOTCallbackInfo* callbackInfo)
             memcpy(propertyName, start, n);            
             value[0] = ' ';            
             LOG_VERBOSE(" Token propertyName %s ", propertyName);
-            // for (int k=0;k<numberOfTag;k++)
-            // {        
-            // if (strncmp(uo->json + token.start, settingTags[k], token.end - token.start) == 0) 
-            // {
-            // //LOG_VERBOSE(" FIRMWAREURL ");
-            //char buffer[260];
+            
             
             char* buffer =msg;
             if (getConfigFromSettingAsString(propertyName, buffer, sizeof(buffer)))
@@ -123,16 +163,7 @@ void on_IOTCSettings(IOTContext ctx, IOTCallbackInfo* callbackInfo)
                     pos = snprintf(msg, sizeof(msg) - 1, "{\"%s\":%s}",
                                 propertyName,value );
                     // LOG_VERBOSE("Json to send :%s",msg);
-                    auto errorCode = iotc_send_property(g_iotContex, msg, pos);
-                    // Serial.println("Value");
-                    // Serial.println(value);
-                    // Serial.println("length");
-                    // Serial.println(strlen(value));
-                    // Serial.println("last");
-                    // char t= value[strlen(value)-1];
-                    // Serial.println(t);
-                    
-
+                    //auto errorCode = iotc_send_property(g_iotContex, msg, pos); 
                     if ((value[0]=='\"')&&(value[strlen(value)-1]=='\"'))
                     {
                         uint len =strlen(value);
@@ -156,6 +187,49 @@ void on_IOTCSettings(IOTContext ctx, IOTCallbackInfo* callbackInfo)
 
             }
         }
+        reportNewProperties();
+
+        //Check all the report only 
+    
+        LOG_VERBOSE("settingTagsReportOnly size :%d",numberOfProperties);
+        //No need to report is all one by one.
+        reportNewState(&currentState);
+        // for (int k=0;k<numberOfProperties;k++)
+        // {
+        //     LOG_VERBOSE("%s",propertyTags[k]);
+        //     char* reportedValue = jsobject_get_string_by_name(&reported,propertyTags[k] );
+            
+        //     getStateAsString(propertyTags[k],value, sizeof(value));
+        //     if ((reportedValue!=NULL)&&(strcmp(reportedValue,value)!=0))
+        //     {
+        //         if ((reportedValue[0]=='\"')&&(reportedValue[strlen(reportedValue)-1]=='\"'))
+        //             pos = snprintf(msg, sizeof(msg) - 1, "{\"%s\":\"%s\"}",
+        //                         propertyTags[k],value );
+        //         else
+        //         {
+        //             pos = snprintf(msg, sizeof(msg) - 1, "{\"%s\":%s}",
+        //                         propertyTags[k],value );
+        //         }
+        //         LOG_VERBOSE("Json to send :%s",msg);
+        //         auto errorCode = iotc_send_property(g_iotContex, msg, pos);
+        //     }
+        //     else if (reportedValue==NULL)
+        //     {
+        //         LOG_VERBOSE("Report non previous");
+        //         if (((value[0]>=48)&&(value[0]<=39))||((value[0]==45)))
+        //             pos = snprintf(msg, sizeof(msg) - 1, "{\"%s\":\"%s\"}",
+        //                         propertyTags[k],value );
+        //         else
+        //         {
+        //             pos = snprintf(msg, sizeof(msg) - 1, "{\"%s\":%s}",
+        //                         propertyTags[k],value );
+        //         }
+        //         LOG_VERBOSE("Json to send :%s",msg);
+        //         auto errorCode = iotc_send_property(g_iotContex, msg, pos);
+        //     }
+        // }
+        LOG_VERBOSE("Done Rport");
+
     }
     else
     {   
@@ -182,9 +256,7 @@ void on_IOTCStatus(IOTContext ctx, IOTCallbackInfo* callbackInfo)
                callbackInfo->statusCode);
         // isConnected = callbackInfo->statusCode == IOTC_CONNECTION_OK;
         currentState.isAzureConnected = callbackInfo->statusCode == IOTC_CONNECTION_OK;
-        currentState.needReconnectAzure = !currentState.isAzureConnected;
-        Serial.println("currentState.Id");
-        Serial.println(currentState.ID);
+        currentState.needReconnectAzure = !currentState.isAzureConnected;        
         Serial.println("currentState.isAzureConnected");
         Serial.println(currentState.isAzureConnected)    ;    
         return;

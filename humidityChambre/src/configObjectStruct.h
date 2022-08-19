@@ -11,6 +11,8 @@
 extern const char* pFirmwareUpdateState;
 extern const char* pFirmwareVersion ;
 extern const char* pDoorOpenState;
+extern const char* pVaporiserOnState;
+extern const char* pDeHumidifierOnState;
 extern const char* sFirmwareURL ;
 extern const char* sSsid ;
 extern const char* sSsidPW ;
@@ -27,6 +29,11 @@ extern const char* sPinFan ;
 extern const char* sFanSpeed ;
 extern const char* tHumidity ;
 extern const char* tTemperature ;
+
+extern const int numberOfProperties;
+extern const char* propertyTags[];
+extern const int numberOfTag ;
+extern const char* settingTags[];
 
 
 typedef struct configObjectStructTag{
@@ -61,4 +68,6 @@ bool getStoredConfig(configObjectStruct* co );
 
 bool getConfigFromSettingAsString(const char* settingName, char* buffer, int length);
 void setConfigFromSettingAsString(const char* settingName, char* buffer,configObjectStruct* cop=NULL );
+
+bool getStateAsString(const char* stateElement, char* buffer, int length);
 #endif

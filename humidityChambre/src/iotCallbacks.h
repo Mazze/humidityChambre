@@ -5,7 +5,7 @@
 #include "azure/iotc.h"
 #include "globals.h"
 
-
+void reportNewState(stateStruct* state);
 void sendNewTelemetry(stateStruct* state);
 
 void on_IOTCMessage(IOTContext ctx, IOTCallbackInfo* callbackInfo) ;

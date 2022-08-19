@@ -2,6 +2,7 @@
 #include "logging.h"
 #include <FS.h>
 #include <LittleFS.h>
+#include "globals.h"
 
 #define FIRMWAREVERSION_MAJOR 0
 #define FIRMWAREVERSION_MINOR 1
@@ -28,7 +29,8 @@ const char* sPinSDA =  "cpinSDA";
 const char* sPinSCL =  "cpinSCL";
 const char* sPinFan = "sPinFan";
 const char* sFanSpeed = "sFanSpeed";
-const int numberOfTag =14 ;
+const int numberOfTag =13 ;
+const int numberOfProperties =5 ;
 //Telemetry Data
 const char* tHumidity =  "tHumid";
 const char* tTemperature =  "tTemp";
@@ -36,7 +38,7 @@ const char* tTemperature =  "tTemp";
 
 
 const char* settingTags [numberOfTag]= {sFirmwareURL,
-                      sSsid, sSsidPW, sNtpserver1, sNtpserver1 ,
+                      sSsid, sSsidPW, sNtpserver1, sNtpserver2 ,
                       sTargetHumid,sTargetHumidTolerance, 
                       sDehumidityPin, sVaporizerPin, sPinSDA,sPinSCL,
                       sPinFan, sFanSpeed  }; 
@@ -280,11 +282,9 @@ bool getConfigFromSettingAsString(const char* settingName, char* buffer, int len
                      FIRMWAREVERSION_MAJOR,FIRMWAREVERSION_MINOR,FIRMWAREVERSION_BUILD );    
   }
   else if(strcmp(settingName, sFirmwareURL)==0)
-  {
-    LOG_VERBOSE("cFirmwareURL" );    
-    memset(buffer,0, length);
-    memcpy(buffer,&co.firmwareUrlAddon[1],strlen(co.firmwareUrlAddon)-2);      
-     LOG_VERBOSE("\tbuffer%s" , buffer );    
+  {    
+    snprintf(buffer,length,"\"%s\"",co.firmwareUrlAddon);
+    // memcpy(buffer,&co.firmwareUrlAddon[1],strlen(co.firmwareUrlAddon)-2);           
   }
   else if(strcmp(settingName, pFirmwareUpdateState)==0)
   {    
@@ -295,13 +295,13 @@ bool getConfigFromSettingAsString(const char* settingName, char* buffer, int len
   else if(strcmp(settingName, sTargetHumidTolerance)==0)
     snprintf(buffer, length, "%d",co.targetHumidTolerance);    
   else if(strcmp(settingName, sSsid)==0)
-    snprintf(buffer, length, "%s",co.ssid);    
+    snprintf(buffer, length, "\"%s\"",co.ssid);    
   else if(strcmp(settingName, sSsidPW)==0)
-    snprintf(buffer, length, "%s",co.PW);    
+    snprintf(buffer, length, "\"%s\"",co.PW);    
   else if(strcmp(settingName, sNtpserver1)==0)
-    snprintf(buffer, length, "%s",co.ntpserver1);    
+    snprintf(buffer, length, "\"%s\"",co.ntpserver1);    
   else if(strcmp(settingName, sNtpserver2)==0)
-    snprintf(buffer, length, "%s",co.ntpserver2);    
+    snprintf(buffer, length, "\"%s\"",co.ntpserver2);    
   else if(strcmp(settingName, sDehumidityPin)==0)
     snprintf(buffer, length, "%d",co.pinDehumidity);    
   else if(strcmp(settingName, sVaporizerPin)==0)
@@ -315,6 +315,36 @@ bool getConfigFromSettingAsString(const char* settingName, char* buffer, int len
     else if(strcmp(settingName, sFanSpeed)==0)
     snprintf(buffer, length, "%d",co.speedFan);    
 
+  else {
+    LOG_VERBOSE("Unknown" );
+    snprintf(buffer, length, "  ");
+    return false ;
+  } 
+  return true ;
+}
+
+
+
+bool getStateAsString(const char* stateElement, char* buffer, int length)
+{
+  if (strcmp(stateElement, pFirmwareVersion)==0)
+  {
+    //LOG_VERBOSE("Firmware version" );
+    snprintf(buffer, length, "\"%d.%02d.%02d\"",
+                     FIRMWAREVERSION_MAJOR,FIRMWAREVERSION_MINOR,FIRMWAREVERSION_BUILD );    
+  }
+ 
+  else if(strcmp(stateElement, pFirmwareUpdateState)==0)
+  {    
+    memcpy(buffer,"\"Not Set\"",9);          
+    buffer[10]=0;
+  }
+  else if(strcmp(stateElement, pDoorOpenState)==0)
+    snprintf(buffer, length, "%d",(int) currentState.isDoorOpen);    
+  else if(strcmp(stateElement, pVaporiserOnState)==0)
+    snprintf(buffer, length, "%d",(int) currentState.vaporizerOn);    
+  else if(strcmp(stateElement, pDeHumidifierOnState)==0)
+    snprintf(buffer, length, "%d",(int) currentState.DehumidifyOn);    
   else {
     //LOG_VERBOSE("Unknown" );
     snprintf(buffer, length, "  ");
