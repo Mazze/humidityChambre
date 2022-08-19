@@ -213,27 +213,36 @@ void setClock(int maxIterrations =2 ) {
 
 
 void turnOffVaporizer()
-{
-  digitalWrite(g_configObject.pinVaporizer, LOW); 
+{  
   Serial.println("Vaporizer off");  
   if (currentState.vaporizerOn ==true)
   {
     //only change if change is needed
     currentState.vaporizerOn =false;  
     currentState.stateNeedsReport=true;
+    digitalWrite(g_configObject.pinVaporizer, HIGH); 
+    delay(600);
+    digitalWrite(g_configObject.pinVaporizer, LOW);
+    delay(600);
+    digitalWrite(g_configObject.pinVaporizer, HIGH); 
+    delay(600);
+    digitalWrite(g_configObject.pinVaporizer, LOW);
   }
 }
 
 void turnOnVaporizer()
 {
   displayInformation("Vaporizer On");
-  digitalWrite(g_configObject.pinVaporizer, HIGH);   
+  
   if (currentState.vaporizerOn ==false)
   {
+    digitalWrite(g_configObject.pinVaporizer, HIGH);   
     LOG_VERBOSE("Vaporizer was off");
     //only change if change is needed
     currentState.vaporizerOn =true;  
     currentState.stateNeedsReport=true;
+    delay(600);
+    digitalWrite(g_configObject.pinVaporizer, LOW);
   }
   turnOffHumidifier();  
 }
@@ -320,15 +329,17 @@ bool setupAzure()
 }
 
 void IRAM_ATTR doorOpenEventISR(int id) {
-  if ( millis() -lastButtonPressMS >300)
+  if ( millis() -lastButtonPressMS >60)
   {
     lastButtonPressMS = millis();
     switch (id)
     {
       case INTERRUPBUTTONID_DOOR:
-        Serial.println("Door open");
-        currentState.isDoorOpen =!currentState.isDoorOpen;  
-        reportNewState(&currentState);
+        Serial.println("Door changed");
+        // currentState.isDoorOpen =!currentState.isDoorOpen;  
+        // Serial.println("Door open 2");
+        currentState.stateNeedsReport = true;
+        // Serial.println("Door open 3");
         break;
       case INTERRUPBUTTONID_SW1:
         Serial.println("Button 1");
@@ -467,7 +478,8 @@ void setup() {
   g_envSensor = new enviroment_SHT31();
 
   g_envSensor->init(0x44,&I2C_0);
-
+  g_envSensor->setOversamplingHumidity(enviromentSensorInterface::Sample_X4);
+  g_envSensor->setOversamplingTemperature(enviromentSensorInterface::Sample_X2);
   pinMode(g_configObject.pinVaporizer, OUTPUT);
   pinMode(g_configObject.pinDehumidity, OUTPUT);
   pinMode(g_configObject.pinDoorswitch, INPUT_PULLUP);  
@@ -486,7 +498,7 @@ void setup() {
   ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_12_BIT);
   ledcAttachPin(g_configObject.pinFan, LEDC_CHANNEL_0);
   fanSpeedAnalogWrite(LEDC_CHANNEL_0, (uint32_t) g_configObject.speedFan);
-
+  analogReadResolution(12);
   Serial.println("Almost loop time");
   g_lastTick = 0;  
   iotc_loop();
@@ -497,8 +509,14 @@ int counterTele=0;
 
 void loop() {
   
-   // set the brightness on LEDC channel 0
-  
+  //check the water level 
+
+  int analogValue = analogRead(4);  
+  if (analogValue<50)
+  {
+    //Water is empty
+    LOG_VERBOSE("No water left");
+  }
   if (WiFi.status()==WL_CONNECTION_LOST)
   {
     // We used to be connected but are no longer
@@ -513,6 +531,8 @@ void loop() {
       TestEnviroment();
       if (currentState.stateNeedsReport==true)
       {
+        //This will make sure we use the actual state of the door;
+        currentState.isDoorOpen =digitalRead(g_configObject.pinDoorswitch);
         reportNewState(&currentState);
         counterTele=0;
       }

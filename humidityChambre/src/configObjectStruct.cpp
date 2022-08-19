@@ -7,7 +7,9 @@
 #define FIRMWAREVERSION_MAJOR 0
 #define FIRMWAREVERSION_MINOR 1
 #define FIRMWAREVERSION_BUILD __DATE__,__TIME__
-
+#define PINDOORSWITCH 5
+#define PINCONTROLLSWITCH1 6
+#define PINCONTROLLSWITCH2 7
 //Reported Properties
 const char* pFirmwareUpdateState =  "firmwareUpdateState";
 const char* pFirmwareVersion =  "FirmwareVersion";
@@ -61,9 +63,9 @@ inline void initCOStruct(configObjectStruct* co)
   co->pinSDA=18;
   co->pinSCL=19;
   co->pinFan=3;
-  co->pinDoorswitch=5;
-  co->pinControllSwitch1=6;
-  co->pinControllSwitch2=7;
+  co->pinDoorswitch=PINDOORSWITCH;
+  co->pinControllSwitch1=PINCONTROLLSWITCH1;
+  co->pinControllSwitch2=PINCONTROLLSWITCH2;
   co->speedFan=128;
 } 
 
@@ -136,6 +138,12 @@ bool getStoredConfig(configObjectStruct* co )
   }
   f.read(reinterpret_cast<uint8_t*>(co), sizeof(configObjectStruct) ); 
   f.close();
+
+  //Set defaults, I should not do it, but I do not want to put it in the 
+  // Cloud, no need.
+  co->pinDoorswitch=PINDOORSWITCH;
+  co->pinControllSwitch1=PINCONTROLLSWITCH1;
+  co->pinControllSwitch2=PINCONTROLLSWITCH2;
   return true;
 }
 
