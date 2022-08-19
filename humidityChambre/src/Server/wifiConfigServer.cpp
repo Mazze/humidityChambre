@@ -163,7 +163,7 @@ void wifiConfigServer::handlePostConfig(){
 
 
         setStoredConfig(&co );
-        this->server->sendHeader("Location","/");
+        this->server->sendHeader("Location","/?saved=wifisave");
         this->server->send(303, FPSTR(TEXT_PLAIN), "action:1");
       }   
       else
@@ -183,15 +183,37 @@ void wifiConfigServer::handlePostConfig(){
         strcpy((co.ntpserver1), this->server->arg("NTP1").c_str());
         strcpy((co.ntpserver2), this->server->arg("NTP2").c_str());        
         setStoredConfig(&co );
-        this->server->sendHeader("Location","/");
+        this->server->sendHeader("Location","/?saved=ntpsave");
         this->server->send(303, FPSTR(TEXT_PLAIN), "action:1");
       }   
       else
       {
         this->server->send(400, FPSTR(TEXT_PLAIN), "Required data not send");
       }
-
   }
+  else if (strncmp("saveCloud",this->server->pathArg(0).c_str(),9 ) ==0)
+  {
+      if (this->server->hasArg("SCOPE_ID")&&this->server->hasArg("DEVICE_ID")&&this->server->hasArg("DEVICE_KEY"))
+      {
+        Serial.println("save cloud");
+        configObjectStruct co;
+        getStoredConfig(&co );
+        strcpy((co.DEVICE_ID), this->server->arg("DEVICE_ID").c_str());
+        strcpy((co.DEVICE_KEY), this->server->arg("DEVICE_KEY").c_str());        
+        strcpy((co.SCOPE_ID), this->server->arg("SCOPE_ID").c_str());        
+        setStoredConfig(&co );
+        this->server->sendHeader("Location","/?saved=cloudsave");
+        this->server->send(303, FPSTR(TEXT_PLAIN), "action:1");
+      }   
+      else
+      {
+        this->server->send(400, FPSTR(TEXT_PLAIN), "Required data not send");
+      }
+  }  
+  
+
+
+  
 
 
   String post  = this->server->arg("plain");
@@ -207,7 +229,7 @@ void wifiConfigServer::handlePostConfig(){
 void wifiConfigServer::handleGetConfig(){
   
   String finalJson ;
-  getStoredConfigJson(&finalJson);
+  // getStoredConfigJson(&finalJson);
   this->server->send(200, "application/json", finalJson);    
 }
 
@@ -239,11 +261,20 @@ void wifiConfigServer::setupServer(int port)
     
     Serial.println("start setup");
     IPAddress myIP = WiFi.softAPIP();
+    
     Serial.print("AP IP address: ");
     Serial.println(myIP);
     Serial.print("MAC address: ");
     Serial.println(WiFi.macAddress()); 
     
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      Serial.print("Local Ip: ");
+      Serial.println(WiFi.localIP());
+    }
+
+
+
     if (!MDNS.begin("humidity")) {
         Serial.println("Error setting up MDNS responder!");        
     }

@@ -23,9 +23,10 @@
             <label for="ssid">Wifi Name(SSID):</label><br>
             <input type="text" id="ssid" name="ssid"><br>
             <label for="pw">Password:</label><br>
-            <input type="password" id="pw" name="pw"><br><br>
+            <input type="password" id="pw" name="pw"><br><br>            
         </div>
         <input type="submit" value="Save">
+        <p id=infoSaveWifi></p>
     </form>
     <form action="/config/saveNTP" method="POST">
         <h4>Time Server</h4>
@@ -36,6 +37,7 @@
             <input type="text" id="NTP2" name="NTP2"><br><br>
         </div>
         <input type="submit" value="Save">
+        <p id=infoSaveNTP></p>
     </form>
     <form action="/config/saveCloud" method="POST">
         <h4>Cloud Configuration</h4>
@@ -49,12 +51,52 @@
         </div>
         <br><br>
         <input type="submit" value="Save">
+        <p id=infoSaveCloud></p>
     </form>
     <br><br>
-    <form action="/restart" method="POST">
+    <form action="/action/restart" method="POST">
         <input type="submit" value="Restart">
     </form>
     <script>
+
+        function GetURLParameter(sParam)
+        {
+            var sPageURL = window.location.search.substring(1);
+            var sURLVariables = sPageURL.split('&');
+            for (var i = 0; i < sURLVariables.length; i++) 
+            {
+                var sParameterName = sURLVariables[i].split('=');
+                if (sParameterName[0] == sParam) 
+                {
+                    return sParameterName[1];
+                }
+            }
+        }
+        var saved = GetURLParameter('saved');
+        if (saved==="wifisave")
+        {            
+            document.querySelector("#infoSaveWifi").innerHTML = "<b>Saved Wifi config</b>";            
+        }
+        else if (saved==="wifisavefailed")
+        {
+            document.querySelector("#infoSaveWifi").innerHTML = "<b style='color:red;'>Failed to save Wifi</b>";
+        }
+        else if (saved==="ntpsave")
+        {
+            document.querySelector("#infoSaveNTP").innerHTML = "<b >Saved NTP</b>";
+        }
+        else if (saved==="ntpsavefailed")
+        {
+            document.querySelector("#infoSaveNTP").innerHTML = "<b style='color:red;'>Failed to save NTP</b>";
+        }
+        else if (saved==="cloudsave")
+        {
+            document.querySelector("#infoSaveCloud").innerHTML = "<b >Saved cloud</b>";
+        }
+        else if (saved==="cloudsavefailed")
+        {
+            document.querySelector("#infoSaveCloud").innerHTML = "<b style='color:red;'>Failed to save Cloud</b>";
+        }
         let xhr = new XMLHttpRequest();
         xhr.open('GET', "/deviceinfo", true);
         xhr.send();
